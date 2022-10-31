@@ -37,8 +37,8 @@ const HomeTab = () => {
 	const onSubmit = () => {
 		const getTranslateResult = async () => {
 			try {
-				const translateResult = await axios.get('url');
-				setTranslateText(translateResult);
+				// const translateResult = await axios.get('url');
+				// setTranslateText(translateResult);
 			} catch (err) {
 				console.log('Err', err);
 			}
