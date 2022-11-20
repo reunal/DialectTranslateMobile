@@ -114,21 +114,44 @@ const HomeTab = () => {
 			<View style={styles.seperator} />
 
 			<View style={styles.translateContainer}>
-				<TextInput
-					style={styles.textBox}
-					placeholder="번역할 내용을 입력하세요."
-					returnKeyType="next"
-					onChangeText={setText}
-					multiline
-					value={text}
-				/>
+				<View style={styles.inputTextBox}>
+					<TextInput
+						style={styles.textBox}
+						placeholder="번역할 내용을 입력하세요."
+						returnKeyType="done"
+						onChangeText={setText}
+						value={text}
+					/>
+					<View style={styles.button}>
+						<Pressable
+							style={({pressed}) => [
+								Platform.OS === 'ios' && {
+									opacity: pressed ? 0.6 : 1,
+								},
+							]}
+							android_ripple={{color: '#ededed'}}
+							onPress={() => console.log('영상 입력!')}>
+							<Icon name="file-upload" color="black" size={32} />
+						</Pressable>
+						<Pressable
+							style={({pressed}) => [
+								Platform.OS === 'ios' && {
+									opacity: pressed ? 0.6 : 1,
+								},
+							]}
+							android_ripple={{color: '#ededed'}}
+							onPress={() => console.log('음성 입력!')}>
+							<Icon name="mic" color="black" size={32} />
+						</Pressable>
+					</View>
+				</View>
 				<TouchableOpacity
-					style={styles.translate}
+					style={styles.touchContainer}
 					onPress={() => onSubmit()}
 					activeOpacity={0.7}>
 					<Text style={styles.translateText}>번역하기</Text>
 				</TouchableOpacity>
-				<Text style={styles.textBox}>{translateText}</Text>
+				<Text style={[styles.inputTextBox, styles.inputText]}>{translateText}</Text>
 			</View>
 			{/* <View style={styles.test}>
 				<Text>{voiceLabel} 안녀앟세요</Text>
@@ -160,29 +183,34 @@ const styles = StyleSheet.create({
 		fontWeight: 'bold',
 		color: '#263238',
 	},
-	text2: {
-		fontSize: 14,
-		padding: 5,
-		fontWeight: 'bold',
-		color: '#263238',
+	inputText: {
+		fontSize: 18,
 	},
 	seperator: {
 		backgroundColor: '#263238',
 		height: 1,
 	},
-	textBox: {
-		height: '30%',
-		fontSize: 18,
-		marginTop: 50,
-		borderWidth: 1,
-		borderColor: '#263238',
-		textAlignVertical: 'top',
-		borderRadius: 6,
-	},
 	translateContainer: {
 		marginHorizontal: 10,
+		flex: 1,
 	},
-	translate: {
+	inputTextBox: {
+		flexDirection: 'column',
+		borderWidth: 1,
+		borderColor: '#263238',
+		marginTop: 50,
+		height: '30%',
+		borderRadius: 6,
+	},
+	textBox: {
+		flex: 1,
+		fontSize: 18,
+	},
+	button: {
+		flexDirection: 'row',
+		justifyContent: 'flex-end',
+	},
+	touchContainer: {
 		height: '8%',
 		backgroundColor: '#25DA69',
 		borderRadius: 6,
