@@ -7,9 +7,12 @@ import {
 	View,
 	TextInput,
 	Button,
-	TouchableOpacity,
 	KeyboardAvoidingView,
+	Keyboard,
+	TouchableWithoutFeedback,
+	TouchableOpacity,
 } from 'react-native';
+import Modal from 'react-native-modal';
 import React, {useEffect, useState} from 'react';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import HomeHeader from '../components/HomeHeader';
@@ -21,14 +24,19 @@ import axios from 'axios';
 const HomeTab = () => {
 	const [dialect, setDialect] = useState('지역 선택');
 	const [modalVisible, setModalVisible] = useState(false);
+	const [loadingVisible, setLoadingVisible] = useState(false);
 	const [text, setText] = useState('');
 	const [translateText, setTranslateText] = useState('');
 
+	// 파일 업로드 파트
+	const [uploadVisible, setUploadVisible] = useState(false);
+
 	// 음성 인식 파트
 	const [isRecord, setIsRecord] = useState(false);
-	const [voiceText, setVoiceText] = useState('');
+	let saveText = '';
+	const [check, setCheck] = useState(false);
 	const buttonLabel = isRecord ? 'Stop' : 'Start';
-	const voiceLabel = voiceText ? voiceText : isRecord ? 'Say somethings' : 'press Start Button';
+	const voiceLabel = text ? text : isRecord ? '번역할 내용을 입력하세요.' : '';
 
 	const onPressModal = () => {
 		setModalVisible(!modalVisible);
@@ -46,10 +54,30 @@ const HomeTab = () => {
 		console.log('서버로 통신');
 	};
 
+	// 파일 업로드 파트 함수
+	const onChangeUploadVisible = () => {
+		setUploadVisible(!uploadVisible);
+	};
+
 	// 음성 인식 파트 함수
+	const onChangeLoadingVisible = () => {
+		setLoadingVisible(!loadingVisible);
+	};
+
+	const onCheckTime = () => {
+		// setTimeout(() => {
+		// 	console.log('실행');
+		// 	if (text === saveText) {
+		// 		onChangeLoadingVisible();
+		// 		setIsRecord(!isRecord);
+		// 		Voice.stop();
+		// 	}
+		// }, 2500);
+	};
+
 	const _onSpeechStart = () => {
 		console.log('onSpeechStart');
-		setVoiceText('');
+		setText('');
 	};
 
 	const _onSpeechEnd = () => {
@@ -58,13 +86,17 @@ const HomeTab = () => {
 
 	const _onSpeechResults = event => {
 		console.log('onSpeechResults');
-		setVoiceText(event.value[0]);
+		saveText = text;
+
+		setText(event.value[0]);
+		onCheckTime();
 	};
 
 	const _onRecordVoice = () => {
 		if (isRecord) {
 			Voice.stop();
 		} else {
+			onChangeLoadingVisible();
 			Voice.start('ko-KR');
 		}
 		setIsRecord(!isRecord);
@@ -97,6 +129,54 @@ const HomeTab = () => {
 					setModalVisible={setModalVisible}
 				/>
 			)}
+			{uploadVisible && (
+				<Modal
+					isVisible={uploadVisible}
+					useNativeDriver={true}
+					onBackdropPress={() => onChangeUploadVisible()}
+					animationIn="slideInUp"
+					style={{
+						flex: 1,
+						justifyContent: 'center',
+						alignItems: 'center',
+					}}>
+					<View style={styles.modalBox}>
+						<Icon style={styles.icon} name="insert-drive-file" size={48} />
+						<Text style={styles.text}>파일 업로드</Text>
+						<View style={styles.fileBox}>
+							<Text style={styles.text_white}>DROP!!</Text>
+						</View>
+						<Text style={styles.text}>번역 Test</Text>
+						<Pressable
+							style={({pressed}) => [
+								Platform.OS === 'ios' && {
+									opacity: pressed ? 0.6 : 1,
+								},
+								styles.buttonBox,
+							]}
+							android_ripple={{color: '#ededed'}}>
+							<Text style={styles.text_white}>번역하기</Text>
+						</Pressable>
+					</View>
+				</Modal>
+			)}
+			{loadingVisible && (
+				<Modal
+					isVisible={loadingVisible}
+					useNativeDriver={true}
+					onBackdropPress={() => onChangeLoadingVisible()}
+					animationIn="slideInUp"
+					style={{
+						flex: 1,
+						justifyContent: 'center',
+						alignItems: 'center',
+					}}>
+					<View style={styles.modalBox}>
+						<Icon style={styles.icon} name="mic" size={48} />
+						<Text style={styles.text}>녹음 중입니다.</Text>
+					</View>
+				</Modal>
+			)}
 			<View style={styles.areaSelect}>
 				<Pressable
 					style={({pressed}) => [
@@ -113,50 +193,54 @@ const HomeTab = () => {
 			</View>
 			<View style={styles.seperator} />
 
-			<View style={styles.translateContainer}>
-				<View style={styles.inputTextBox}>
-					<TextInput
-						style={styles.textBox}
-						placeholder="번역할 내용을 입력하세요."
-						returnKeyType="done"
-						onChangeText={setText}
-						value={text}
-					/>
-					<View style={styles.button}>
-						<Pressable
-							style={({pressed}) => [
-								Platform.OS === 'ios' && {
-									opacity: pressed ? 0.6 : 1,
-								},
-							]}
-							android_ripple={{color: '#ededed'}}
-							onPress={() => console.log('영상 입력!')}>
-							<Icon name="file-upload" color="black" size={32} />
-						</Pressable>
-						<Pressable
-							style={({pressed}) => [
-								Platform.OS === 'ios' && {
-									opacity: pressed ? 0.6 : 1,
-								},
-							]}
-							android_ripple={{color: '#ededed'}}
-							onPress={() => console.log('음성 입력!')}>
-							<Icon name="mic" color="black" size={32} />
-						</Pressable>
+			<TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
+				<View style={styles.translateContainer}>
+					<View style={styles.inputTextBox}>
+						<TextInput
+							style={styles.textBox}
+							placeholder="번역할 내용을 입력하세요."
+							returnKeyType="done"
+							onChangeText={setText}
+							value={text}
+							multiline
+						/>
+
+						<View style={styles.button}>
+							<Pressable
+								style={({pressed}) => [
+									Platform.OS === 'ios' && {
+										opacity: pressed ? 0.6 : 1,
+									},
+								]}
+								android_ripple={{color: '#ededed'}}
+								onPress={() => onChangeUploadVisible()}>
+								<Icon name="file-upload" color="black" size={32} />
+							</Pressable>
+							<Pressable
+								style={({pressed}) => [
+									Platform.OS === 'ios' && {
+										opacity: pressed ? 0.6 : 1,
+									},
+								]}
+								android_ripple={{color: '#ededed'}}
+								onPress={() => _onRecordVoice()}>
+								<Icon name="mic" color="black" size={32} />
+							</Pressable>
+						</View>
 					</View>
+
+					<TouchableOpacity
+						style={styles.touchContainer}
+						onPress={() => onSubmit()}
+						activeOpacity={0.7}>
+						<Text style={styles.text_white}>번역하기</Text>
+					</TouchableOpacity>
+					<Text style={[styles.inputTextBox, styles.inputText]}>{translateText}</Text>
+					<Button onPress={_onRecordVoice} title={'text'}>
+						안녕하세요
+					</Button>
 				</View>
-				<TouchableOpacity
-					style={styles.touchContainer}
-					onPress={() => onSubmit()}
-					activeOpacity={0.7}>
-					<Text style={styles.translateText}>번역하기</Text>
-				</TouchableOpacity>
-				<Text style={[styles.inputTextBox, styles.inputText]}>{translateText}</Text>
-			</View>
-			{/* <View style={styles.test}>
-				<Text>{voiceLabel} 안녀앟세요</Text>
-				<Button onPress={_onRecordVoice} title={buttonLabel} />
-			</View> */}
+			</TouchableWithoutFeedback>
 		</SafeAreaView>
 	);
 };
@@ -164,10 +248,6 @@ const HomeTab = () => {
 export default HomeTab;
 
 const styles = StyleSheet.create({
-	test: {
-		flex: 1,
-		justifyContent: 'center',
-	},
 	block: {
 		flex: 1,
 		backgroundColor: 'white',
@@ -179,9 +259,14 @@ const styles = StyleSheet.create({
 	},
 	text: {
 		fontSize: 24,
-		padding: 20,
+		padding: 15,
 		fontWeight: 'bold',
 		color: '#263238',
+	},
+	text_white: {
+		color: 'white',
+		fontSize: 20,
+		fontWeight: 'bold',
 	},
 	inputText: {
 		fontSize: 18,
@@ -205,10 +290,21 @@ const styles = StyleSheet.create({
 	textBox: {
 		flex: 1,
 		fontSize: 18,
+		textAlignVertical: 'top',
+	},
+	buttonBox: {
+		height: '10%',
+		backgroundColor: '#25DA69',
+		paddingHorizontal: 20,
+		alignItems: 'center',
+		justifyContent: 'center',
 	},
 	button: {
+		position: 'absolute',
 		flexDirection: 'row',
 		justifyContent: 'flex-end',
+		bottom: 0,
+		right: 0,
 	},
 	touchContainer: {
 		height: '8%',
@@ -217,9 +313,23 @@ const styles = StyleSheet.create({
 		alignItems: 'center',
 		justifyContent: 'center',
 	},
-	translateText: {
-		color: 'white',
-		fontSize: 18,
-		fontWeight: 'bold',
+	modalBox: {
+		width: '90%',
+		height: '50%',
+		backgroundColor: '#fafafa',
+		paddingHorizontal: 20,
+		flexDirection: 'column',
+		alignItems: 'center',
+	},
+	fileBox: {
+		width: '80%',
+		height: '30%',
+		backgroundColor: '#00c853',
+		justifyContent: 'center',
+		alignItems: 'center',
+	},
+	icon: {
+		paddingTop: 15,
+		size: '32',
 	},
 });
