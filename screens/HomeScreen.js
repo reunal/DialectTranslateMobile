@@ -11,9 +11,10 @@ import {
 	Keyboard,
 	TouchableWithoutFeedback,
 	TouchableOpacity,
+	ToastAndroid,
 } from 'react-native';
 import Modal from 'react-native-modal';
-import React, {useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useState} from 'react';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import HomeHeader from '../components/HomeHeader';
 import Icon from 'react-native-vector-icons/MaterialIcons';
@@ -33,46 +34,73 @@ const HomeTab = () => {
 
 	// 음성 인식 파트
 	const [isRecord, setIsRecord] = useState(false);
-	let saveText = '';
+	let timer;
 	const [check, setCheck] = useState(false);
 	const buttonLabel = isRecord ? 'Stop' : 'Start';
 	const voiceLabel = text ? text : isRecord ? '번역할 내용을 입력하세요.' : '';
 
 	const onPressModal = () => {
-		setModalVisible(!modalVisible);
+		setModalVisible(() => !modalVisible);
 	};
 
-	const onSubmit = () => {
-		const getTranslateResult = async () => {
-			try {
-				// const translateResult = await axios.get('url');
-				// setTranslateText(translateResult);
-			} catch (err) {
-				console.log('Err', err);
-			}
-		};
-		console.log('서버로 통신');
+	const mapping = region => {
+		if (region === '강원도') return 0;
+		else if (region === '경상도') return 1;
+		else if (region === '전라도') return 2;
+		else if (region === '제주도') return 3;
+		else if (region === '충청도') return 4;
+		else undefined;
 	};
+
+	const onSubmit = useCallback(
+		e => {
+			const url = 'http://202.31.202.9/translate';
+			const header = {Accept: 'application/json', 'Content-type': 'application/json'};
+			const crossOriginIsolated = {withCredentials: true};
+			const data = {
+				dialect: text,
+				label: mapping(dialect),
+			};
+			console.log('data : ', data);
+			// fetch(url, {method: 'POST', header, crossOriginIsolated}, data)
+			// 	.then(response => {
+			// 		console.log(response);
+			// 		setDialect(response.region);
+			// 		setTranslateText(response.standard_form);
+			// 		console.log(response.region);
+			// 		console.log(response.standard_form);
+			// 	})
+			// 	.catch(err => console.error(`Error Occured : ${err}`));
+			axios
+				.post(url, data, header, crossOriginIsolated)
+				.then(response => {
+					console.log(response.data);
+					setDialect(response.data.region);
+					setTranslateText(response.data.standard_form);
+					console.log(response.data.region);
+					console.log(response.data.standard_form);
+				})
+				.catch(err => console.error(`Error Occured : ${err}`));
+			// e.event.preve // 불필요한 렌더링 방지
+		},
+		[dialect, text],
+	);
 
 	// 파일 업로드 파트 함수
 	const onChangeUploadVisible = () => {
-		setUploadVisible(!uploadVisible);
+		setUploadVisible(() => !uploadVisible);
 	};
 
 	// 음성 인식 파트 함수
-	const onChangeLoadingVisible = () => {
-		setLoadingVisible(!loadingVisible);
+	const onChangeLoadingModal = () => {
+		setLoadingVisible(() => !loadingVisible);
+		Voice.stop();
 	};
 
-	const onCheckTime = () => {
-		// setTimeout(() => {
-		// 	console.log('실행');
-		// 	if (text === saveText) {
-		// 		onChangeLoadingVisible();
-		// 		setIsRecord(!isRecord);
-		// 		Voice.stop();
-		// 	}
-		// }, 2500);
+	const onVoiceEnd = () => {
+		if (Voice.isRecognizing() === 0) return;
+
+		Voice.stop();
 	};
 
 	const _onSpeechStart = () => {
@@ -82,34 +110,41 @@ const HomeTab = () => {
 
 	const _onSpeechEnd = () => {
 		console.log('onSpeechEnd');
+		setIsRecord(!isRecord);
+		setLoadingVisible(() => false);
+		console.log('loading state : ', loadingVisible);
+	};
+
+	const _onSpeechRecognized = event => {
+		console.log('음성 인식 시작!!');
+		if (Voice.isRecognizing() === 0) clearTimeout(timer);
 	};
 
 	const _onSpeechResults = event => {
 		console.log('onSpeechResults');
-		saveText = text;
 
 		setText(event.value[0]);
-		onCheckTime();
+		timer = setTimeout(() => onVoiceEnd(), 3000);
 	};
 
 	const _onRecordVoice = () => {
 		if (isRecord) {
 			Voice.stop();
 		} else {
-			onChangeLoadingVisible();
+			setLoadingVisible(true);
 			Voice.start('ko-KR');
 		}
 		setIsRecord(!isRecord);
 	};
 
 	const _onSpeechError = event => {
-		console.log('_onSpeechError');
-		console.log(event.error);
+		Voice.start('ko-KR');
 	};
 
 	useEffect(() => {
 		Voice.onSpeechStart = _onSpeechStart;
 		Voice.onSpeechEnd = _onSpeechEnd;
+		Voice.onSpeechRecognized = _onSpeechRecognized;
 		Voice.onSpeechResults = _onSpeechResults;
 		Voice.onSpeechError = _onSpeechError;
 
@@ -164,14 +199,14 @@ const HomeTab = () => {
 				<Modal
 					isVisible={loadingVisible}
 					useNativeDriver={true}
-					onBackdropPress={() => onChangeLoadingVisible()}
+					onBackdropPress={() => onChangeLoadingModal()}
 					animationIn="slideInUp"
 					style={{
 						flex: 1,
 						justifyContent: 'center',
 						alignItems: 'center',
 					}}>
-					<View style={styles.modalBox}>
+					<View style={styles.loadingBox}>
 						<Icon style={styles.icon} name="mic" size={48} />
 						<Text style={styles.text}>녹음 중입니다.</Text>
 					</View>
@@ -236,11 +271,9 @@ const HomeTab = () => {
 						<Text style={styles.text_white}>번역하기</Text>
 					</TouchableOpacity>
 					<Text style={[styles.inputTextBox, styles.inputText]}>{translateText}</Text>
-					<Button onPress={_onRecordVoice} title={'text'}>
-						안녕하세요
-					</Button>
 				</View>
 			</TouchableWithoutFeedback>
+			{console.log('loading state2 : ', loadingVisible)}
 		</SafeAreaView>
 	);
 };
@@ -327,6 +360,15 @@ const styles = StyleSheet.create({
 		backgroundColor: '#00c853',
 		justifyContent: 'center',
 		alignItems: 'center',
+	},
+	loadingBox: {
+		position: 'absolute',
+		bottom: 1,
+		flexDirection: 'column',
+		alignItems: 'center',
+		width: '90%',
+		// height: '50%',
+		backgroundColor: '#fafafa',
 	},
 	icon: {
 		paddingTop: 15,
